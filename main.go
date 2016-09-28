@@ -1,9 +1,9 @@
 package main
 
 import (
-	"clusterH/interface"
+	"clusterH/cliInterface"
 )
 
 func main() {
-	interface.Run()
+	cliInterface.Run()
 }
