@@ -1,16 +1,21 @@
-package clusterOperation
+package clusterDO
 
 import (
 	"bufio"
+	"clusterH/store"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/boltdb/bolt"
 	"github.com/digitalocean/godo"
 	"github.com/urfave/cli"
 	"golang.org/x/oauth2"
 )
+
+var db = store.GetDB()
 
 type TokenSource struct {
 	AccessToken string
@@ -220,5 +225,112 @@ func DestroyAll(c *cli.Context) {
 	for _, d := range droplets {
 		fmt.Println(d.ID)
 		client.Droplets.Delete(d.ID)
+	}
+}
+
+func AddFingerprint(fingerprint, name string) error {
+
+	var nameExist = false
+
+	db.View(func(tx *bolt.Tx) error {
+
+		bucket := tx.Bucket([]byte("fingerprints"))
+
+		if bucket == nil {
+			return nil
+		}
+
+		if bucket.Get([]byte(name)) != nil {
+			nameExist = true
+		}
+		return nil
+	})
+
+	if nameExist {
+		fmt.Println("This name of fingerprint is already exist. Please choose other name")
+		return nil
+	}
+
+	db.Update(func(tx *bolt.Tx) error {
+
+		bucket, _ := tx.CreateBucketIfNotExists([]byte("fingerprints"))
+
+		var key = []byte(name)
+		var value = []byte(fingerprint)
+
+		bucket.Put(key, value)
+
+		return nil
+	})
+
+	return nil
+}
+
+func Create(c *cli.Context) error {
+
+	var clusterName = c.String("name")
+	var bucketName = []byte("clusterh")
+
+	var clusters []string
+
+	db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+
+		if bucket == nil {
+			return nil
+		}
+
+		json.Unmarshal(bucket.Get([]byte("clusters")), &clusters)
+
+		return nil
+	})
+
+	for _, v := range clusters {
+		if v == clusterName {
+			fmt.Printf("%s is already used as cluster name. Please choose another. \n", clusterName)
+			return nil
+		}
+	}
+
+	clusters = append(clusters, string(clusterName))
+
+	db.Update(func(tx *bolt.Tx) error {
+		bucket, _ := tx.CreateBucketIfNotExists(bucketName)
+
+		_ = bucket.Put([]byte("currentCluster"), []byte(clusterName))
+
+		_ = bucket.Put([]byte("currentClusterType"), []byte("do"))
+
+		clusters, _ := json.Marshal(clusters)
+		_ = bucket.Put([]byte("clusters"), clusters)
+
+		_ = bucket.Put([]byte(clusterName+"-token"), []byte(c.String("token")))
+
+		return nil
+	})
+
+	createDoCluster(c)
+
+	return nil
+}
+
+func GetUI() []cli.Command {
+	return []cli.Command{
+		{
+			Name:  "destroy",
+			Usage: "destroy all droplets in account",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "token, t",
+					Value:  "6300f115ed7a9c6c3d5f334e8e511637841a55ceb1f45ab692592c755419d0fd",
+					Usage:  "Your digitalocean's token",
+					EnvVar: "DIGITAL_OCEAN_TOKEN",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				DestroyAll(c)
+				return nil
+			},
+		},
 	}
 }
