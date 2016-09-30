@@ -1,4 +1,4 @@
-package clusterOperation
+package clusterLocal
 
 import (
 	"archive/zip"
@@ -13,8 +13,13 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"clusterH/store"
+
+	"github.com/boltdb/bolt"
 	"github.com/urfave/cli"
 )
+
+var db = store.GetDB()
 
 type localClusterConfig struct {
 	NumInstances        uint
@@ -220,4 +225,65 @@ func createLocalCluster(c *cli.Context) {
 	runVagrant(runningFilesPath)
 	fmt.Printf("You can use plain vagrant commands in such directory: %s \n", runningFilesPath)
 
+}
+
+func Create(c *cli.Context) error {
+
+	var clusterName = c.String("name")
+	var bucketName = []byte("clusterh")
+
+	var clusters []string
+
+	db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+
+		if bucket == nil {
+			return nil
+		}
+
+		json.Unmarshal(bucket.Get([]byte("clusters")), &clusters)
+
+		return nil
+	})
+
+	for _, v := range clusters {
+		if v == clusterName {
+			fmt.Printf("%s is already used as cluster name. Please choose another. \n", clusterName)
+			return nil
+		}
+	}
+
+	clusters = append(clusters, string(clusterName))
+
+	db.Update(func(tx *bolt.Tx) error {
+		bucket, _ := tx.CreateBucketIfNotExists(bucketName)
+
+		_ = bucket.Put([]byte("currentCluster"), []byte(clusterName))
+
+		_ = bucket.Put([]byte("currentClusterType"), []byte("local"))
+
+		clusters, _ := json.Marshal(clusters)
+		_ = bucket.Put([]byte("clusters"), clusters)
+
+		_ = bucket.Put([]byte(clusterName+"-token"), []byte(c.String("token")))
+
+		return nil
+	})
+
+	createLocalCluster(c)
+
+	return nil
+}
+
+func GetUI() []cli.Command {
+	return []cli.Command{
+		{
+			Name:  "lol",
+			Usage: "destroy all droplets in account",
+			Action: func(c *cli.Context) error {
+				fmt.Println("Lol!")
+				return nil
+			},
+		},
+	}
 }
