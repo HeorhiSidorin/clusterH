@@ -12,7 +12,6 @@ import (
 )
 
 func Create(c *cli.Context) error {
-	createDoCluster(c)
 
 	var clusterName = c.String("name")
 	var bucketName = []byte("clusterh")
@@ -78,6 +77,15 @@ func Create(c *cli.Context) error {
 
 		return nil
 	})
+
+	if c.String("type") == "do" {
+		createDoCluster(c)
+	} else if c.String("type") == "local" {
+		createLocalCluster(c)
+	} else {
+		fmt.Printf("Please choose cluster type: local or do")
+		return nil
+	}
 
 	return nil
 }
