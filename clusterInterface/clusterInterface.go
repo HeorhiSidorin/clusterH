@@ -3,6 +3,7 @@ package clusterInterface
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"clusterH/clusterOperation"
 
@@ -70,6 +71,24 @@ func Run() {
 				}
 				clusterOperation.Create(c)
 				return nil
+			},
+		},
+		{
+			Name:  "add",
+			Usage: "command for addig something",
+			Subcommands: []cli.Command{
+				{
+					Name:  "fingerprint",
+					Usage: "add fingerprint to database",
+					Action: func(c *cli.Context) error {
+						if len(c.Args()[0]) != 47 && strings.Count(c.Args()[0], ":") != 15 {
+							fmt.Printf("Wrong command's format.\nclusterH add fingerprint <fingerprint> <name>\n")
+							return nil
+						}
+						clusterOperation.AddFingerprint(c.Args()[0], c.Args()[1])
+						return nil
+					},
+				},
 			},
 		},
 		{

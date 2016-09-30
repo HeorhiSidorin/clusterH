@@ -62,6 +62,7 @@ func createDoCluster(c *cli.Context) error {
 	//  id, _ := uuid.NewV4()
 	number := c.Int("number")
 	region := c.String("region")
+	size := c.String("size")
 	pat := c.String("token")
 
 	tokenSource := &TokenSource{
@@ -97,13 +98,12 @@ func createDoCluster(c *cli.Context) error {
 		userDataLinesArray = append(userDataLinesArray, line)
 	}
 
-	//userDataLinesArray[4] = "    discovery: " + resp.Host
 	userData := strings.Join(userDataLinesArray, "")
 
 	createRequest := &godo.DropletMultiCreateRequest{
 		Names:             names,
 		Region:            region,
-		Size:              "512mb",
+		Size:              size,
 		PrivateNetworking: true,
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
@@ -140,18 +140,12 @@ func createDoCluster(c *cli.Context) error {
 	}
 	client.Tags.TagResources(c.String("name"), tagResourcesRequest)
 
-	// removing first droplet from cluster(untagging droplet)
+	//removing first droplet from cluster(untagging droplet)
 	unTagResourcesRequest := &godo.UntagResourcesRequest{
 		Resources: resources[0:1],
 	}
 
 	client.Tags.UntagResources(c.String("name"), unTagResourcesRequest)
-
-	// deleting removed from cluster droplet from account
-	for _, r := range resources[0:1] {
-		id, _ := strconv.Atoi(r.ID)
-		client.Droplets.Delete(id)
-	}
 
 	// // store ip addresses of cluster's members
 	// err = db.Update(func(tx *bolt.Tx) error {
@@ -224,6 +218,7 @@ func DestroyAll(c *cli.Context) {
 	droplets, _, _ := client.Droplets.List(&godo.ListOptions{})
 
 	for _, d := range droplets {
+		fmt.Println(d.ID)
 		client.Droplets.Delete(d.ID)
 	}
 }
