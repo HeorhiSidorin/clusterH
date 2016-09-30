@@ -11,6 +11,58 @@ import (
 	"github.com/urfave/cli"
 )
 
+func AddFingerprint(fingerprint, name string) error {
+
+	usr, _ := user.Current()
+
+	if _, err := os.Stat(usr.HomeDir + "/.config/clusterH"); os.IsNotExist(err) {
+		os.Mkdir(usr.HomeDir+"/.config/clusterH", 0700)
+	}
+
+	db, err := bolt.Open(usr.HomeDir+"/.config/clusterH/clusterH.db", 0644, nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer db.Close()
+
+	var nameExist bool = false
+
+	db.View(func(tx *bolt.Tx) error {
+
+		bucket := tx.Bucket([]byte("fingerprints"))
+
+		if bucket == nil {
+			return nil
+		}
+
+		if bucket.Get([]byte(name)) != nil {
+			nameExist = true
+		}
+		return nil
+	})
+
+	if nameExist {
+		fmt.Println("This name of fingerprint is already exist. Please choose other name")
+		return nil
+	}
+
+	db.Update(func(tx *bolt.Tx) error {
+
+		bucket, _ := tx.CreateBucketIfNotExists([]byte("fingerprints"))
+
+		var key = []byte(name)
+		var value = []byte(fingerprint)
+
+		bucket.Put(key, value)
+
+		return nil
+	})
+
+	return nil
+}
+
 func Create(c *cli.Context) error {
 
 	var clusterName = c.String("name")
