@@ -61,6 +61,7 @@ func createDoCluster(c *cli.Context) error {
 
 	//  id, _ := uuid.NewV4()
 	number := c.Int("number")
+	region := c.String("region")
 	pat := c.String("token")
 
 	tokenSource := &TokenSource{
@@ -82,7 +83,11 @@ func createDoCluster(c *cli.Context) error {
 	}
 
 	//open user-data file
-	file, _ := os.Open("/home/heorhi/cli/src/clusterH/clusterOperation/user-data")
+	file, err := os.Open(c.Args()[0])
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
 	scanner := bufio.NewScanner(file)
 
 	var userDataLinesArray []string
@@ -92,11 +97,12 @@ func createDoCluster(c *cli.Context) error {
 		userDataLinesArray = append(userDataLinesArray, line)
 	}
 
+	//userDataLinesArray[4] = "    discovery: " + resp.Host
 	userData := strings.Join(userDataLinesArray, "")
 
 	createRequest := &godo.DropletMultiCreateRequest{
 		Names:             names,
-		Region:            "nyc3",
+		Region:            region,
 		Size:              "512mb",
 		PrivateNetworking: true,
 		SSHKeys: []godo.DropletCreateSSHKey{
