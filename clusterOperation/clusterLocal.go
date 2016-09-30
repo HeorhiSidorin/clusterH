@@ -3,6 +3,7 @@ package clusterOperation
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -11,10 +12,43 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"strings"
 
 	"github.com/urfave/cli"
 )
+
+type localClusterConfig struct {
+	NumInstances        uint
+	InstanceNamePrefix  string
+	UpdateChannel       string
+	ImageVersion        string
+	EnableSerialLogging bool
+	ShareHome           bool
+	VMGui               bool
+	VMMemory            uint
+	VMCpus              uint
+	VbCPUExecutionCap   uint
+	SharedFolders       map[string]string
+	ForwardedPorts      map[string]string
+}
+
+var rubyVagrantConfig = `
+require 'json'
+
+clusterConfig = JSON.parse(File.read('../config.json'))
+
+$num_instances = clusterConfig['NumInstances']
+$instance_name_prefix = clusterConfig['InstanceNamePrefix']
+$update_channel = clusterConfig['UpdateChannel']
+$image_version = clusterConfig['ImageVersion']
+$enable_serial_logging = clusterConfig['EnableSerialLogging']
+$share_home = clusterConfig['ShareHome']
+$vm_gui = clusterConfig['VMGui']
+$vm_memory = clusterConfig['VMMemory']
+$vm_cpus = clusterConfig['VMCpus']
+$vb_cpuexecutioncap = clusterConfig['VbCPUExecutionCap']
+$shared_folders = clusterConfig['SharedFolders']
+$forwarded_ports = clusterConfig['ForwardedPorts']
+`
 
 func downloadRunningFiles(filepath, url string) error {
 	usr, _ := user.Current()
@@ -80,7 +114,34 @@ func unzipRunningFiles(archivePath, target string) error {
 	return nil
 }
 
-func createLocalClusterConfigs(cliFlags *cli.Context, configPath string) error {
+func createLocalClusterConfigs(cliFlags *cli.Context, configPath string, jsonConfigPath string) error {
+
+	myConfig := localClusterConfig{
+		cliFlags.Uint("number"),
+		cliFlags.String("name"),
+		"alpha",
+		"current",
+		false,
+		false,
+		false,
+		1024,
+		1,
+		100,
+		map[string]string{},
+		map[string]string{},
+	}
+
+	myConfigJSON, _ := json.Marshal(myConfig)
+	myConfigJSONFile, err := os.OpenFile(jsonConfigPath+"/config.json", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+	defer myConfigJSONFile.Close()
+
+	myConfigJSONFile.Write([]byte(myConfigJSON))
+
+	fmt.Println(string(myConfigJSON))
+
 	file, err := os.OpenFile(configPath+"/config.rb.sample", os.O_RDONLY, 0777)
 	data := bytes.NewBuffer(nil)
 
@@ -90,9 +151,7 @@ func createLocalClusterConfigs(cliFlags *cli.Context, configPath string) error {
 
 	sampleConfig := string(data.Bytes())
 
-	fmt.Println(strings.Index(sampleConfig, "$num_instances="))
-
-	config := strings.Replace(sampleConfig, "$num_instances=1", "$num_instances="+cliFlags.String("number"), 1)
+	config := sampleConfig + rubyVagrantConfig
 
 	configFile, err := os.OpenFile(configPath+"/config.rb", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
@@ -139,7 +198,7 @@ func createLocalCluster(c *cli.Context) {
 	currentUser, _ := user.Current()
 	runningArchiveURL := "https://github.com/coreos/coreos-vagrant/archive/master.zip"
 	runningArchivePath := currentUser.HomeDir + "/.config/clusterH/coreos-vagrant.zip"
-	runningFilesDest := currentUser.HomeDir + "/.config/clusterH"
+	runningFilesDest := currentUser.HomeDir + "/.config/clusterH/" + c.String("name")
 	runningFilesPath := runningFilesDest + "/coreos-vagrant-master"
 
 	fmt.Println("Downloading coreos-vagrant files")
@@ -153,7 +212,7 @@ func createLocalCluster(c *cli.Context) {
 		log.Fatal(err)
 	}
 	fmt.Println("Create cluster confings: config.rb and user-data")
-	err = createLocalClusterConfigs(c, runningFilesPath)
+	err = createLocalClusterConfigs(c, runningFilesPath, runningFilesDest)
 	if err != nil {
 		log.Fatal(err)
 	}
