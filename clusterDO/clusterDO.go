@@ -112,10 +112,7 @@ func createDoCluster(c *cli.Context) error {
 		PrivateNetworking: true,
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
-				Fingerprint: "0e:4e:20:87:d6:fd:9d:a1:bb:32:33:0c:cd:e3:d0:c7",
-			},
-			{
-				Fingerprint: "86:36:52:f1:9b:35:fc:d9:fe:17:a9:67:99:5d:74:39",
+				Fingerprint: "d2:ee:f3:b0:a4:de:95:12:4c:27:24:5f:de:bb:87:90",
 			},
 		},
 		Image: godo.DropletCreateImage{
