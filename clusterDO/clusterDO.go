@@ -28,40 +28,6 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 	return token, nil
 }
 
-// func getInfo(c *cli.Context) {
-// 	pat := c.String("token")
-//
-// 	tokenSource := &TokenSource{
-// 		AccessToken: pat,
-// 	}
-// 	oauthClient := oauth2.NewClient(oauth2.NoContext, tokenSource)
-// 	client := godo.NewClient(oauthClient)
-// 	//
-// 	opt := &godo.ListOptions{
-// 		Page:    1,
-// 		PerPage: 2,
-// 	}
-//
-// 	droplets, _, _ := client.Droplets.List(opt)
-// 	//
-// 	fmt.Println(droplets[0].ID)
-//
-// 	// Open the file.
-// 	f, _ := os.Open("/home/heorhi/cli/src/clusterH/clusterOperation/user-data")
-// 	// Create a new Scanner for the file.
-// 	scanner := bufio.NewScanner(f)
-// 	// Loop over all lines in the file and print them.
-//
-// 	var userDataLinesArray []string
-//
-// 	for scanner.Scan() {
-// 		line := scanner.Text() + "\n"
-// 		userDataLinesArray = append(userDataLinesArray, line)
-// 	}
-//
-// 	fmt.Println(strings.Join(userDataLinesArray, ""))
-// }
-
 func createDoCluster(c *cli.Context) error {
 
 	//  id, _ := uuid.NewV4()
@@ -148,62 +114,6 @@ func createDoCluster(c *cli.Context) error {
 	}
 
 	client.Tags.UntagResources(c.String("name"), unTagResourcesRequest)
-
-	// // store ip addresses of cluster's members
-	// err = db.Update(func(tx *bolt.Tx) error {
-	// 	bucket, _ := tx.CreateBucketIfNotExists(newClusterName)
-	//
-	// 	key := []byte("members")
-	// 	stringByte := "\x00" + strings.Join(ipAdresses, "\x20\x00")
-	// 	value := []byte(stringByte)
-	//
-	// 	err = bucket.Put(key, value)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	return nil
-	// })
-	//
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	//
-	// // store ip addresses of cluster's members
-	// err = db.Update(func(tx *bolt.Tx) error {
-	// 	bucket, _ := tx.CreateBucketIfNotExists(contextBucket)
-	//
-	// 	key := []byte("currentContext")
-	// 	value := []byte(newClusterName)
-	//
-	// 	err = bucket.Put(key, value)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	return nil
-	// })
-	//
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	//
-	// //retrieve current context
-	// err = db.View(func(tx *bolt.Tx) error {
-	// 	bucket := tx.Bucket(contextBucket)
-	// 	if bucket == nil {
-	// 		return fmt.Errorf("Bucket %q not found!", contextBucket)
-	// 	}
-	//
-	// 	key := []byte("currentContext")
-	//
-	// 	val := bucket.Get(key)
-	// 	fmt.Println(string(val))
-	//
-	// 	return nil
-	// })
-	//
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 
 	return nil
 }
@@ -311,6 +221,25 @@ func Create(c *cli.Context) error {
 	return nil
 }
 
+func Fingerprint(c *cli.Context) {
+	db.View(func(tx *bolt.Tx) error {
+
+		bucket := tx.Bucket([]byte("fingerprints"))
+
+		if bucket == nil {
+			return nil
+		}
+
+		cursor := bucket.Cursor()
+
+	  for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+	    fmt.Printf("%s --------> %s\n", k, v)
+	  }
+
+	  return nil
+	})
+}
+
 func GetUI() []cli.Command {
 	return []cli.Command{
 		{
@@ -319,7 +248,7 @@ func GetUI() []cli.Command {
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:   "token, t",
-					Value:  "6300f115ed7a9c6c3d5f334e8e511637841a55ceb1f45ab692592c755419d0fd",
+					Value:  "edb76f943aed64b72856bf99de5ce1608284fbedcf76ec32491ee19c566be7e2",
 					Usage:  "Your digitalocean's token",
 					EnvVar: "DIGITAL_OCEAN_TOKEN",
 				},

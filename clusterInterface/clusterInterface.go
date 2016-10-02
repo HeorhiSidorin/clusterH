@@ -26,7 +26,7 @@ func Run(currentInterface []cli.Command) {
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:  "token, t",
-							Value: "6300f115ed7a9c6c3d5f334e8e511637841a55ceb1f45ab692592c755419d0fd",
+							Value: "edb76f943aed64b72856bf99de5ce1608284fbedcf76ec32491ee19c566be7e2",
 							Usage: "your digitalocean's token (required)",
 						},
 						cli.StringFlag{
@@ -57,10 +57,6 @@ func Run(currentInterface []cli.Command) {
 							Usage: "new cluster name (required)",
 						},
 						cli.StringFlag{
-							Name:  "type",
-							Usage: "new cluster type (required)",
-						},
-						cli.StringFlag{
 							Name: "size",
 							Usage: `new cluster size
 			List of sizes: 512mb, 1gb, 2gb, 4gb, 8gb, 16gb`,
@@ -69,7 +65,7 @@ func Run(currentInterface []cli.Command) {
 					},
 					Action: func(c *cli.Context) error {
 						//check flags count
-						if c.NumFlags() < 3 {
+						if c.NumFlags() < 1 {
 							fmt.Println("Incorrect command usage. See CREATE command help.")
 							cli.ShowCommandHelp(c, "create")
 							return nil
@@ -124,6 +120,14 @@ func Run(currentInterface []cli.Command) {
 			},
 		},
 		{
+			Name:  "fingerprint",
+			Usage: "list of fingerprint",
+			Action: func(c *cli.Context) error {
+				clusterDO.Fingerprint(c)
+				return nil
+			},
+		},
+		{
 			Name:  "destroy",
 			Usage: "destroy all droplets in account",
 			Flags: []cli.Flag{
@@ -135,13 +139,12 @@ func Run(currentInterface []cli.Command) {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				clusterOperation.DestroyAll(c)
+				clusterDO.DestroyAll(c)
 				return nil
 			},
 		},
 	}
 
 	app.Commands = append(app.Commands, currentInterface...)
-	fmt.Println(currentInterface)
 	app.Run(os.Args)
 }

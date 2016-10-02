@@ -5,7 +5,6 @@ import (
 	"clusterH/clusterInterface"
 	"clusterH/clusterLocal"
 	"clusterH/store"
-	"fmt"
 
 	"github.com/urfave/cli"
 )
@@ -15,8 +14,6 @@ func main() {
 
 	currentClusterType := store.GetCurrentClusterType()
 	var currentInterface []cli.Command
-
-	fmt.Println("=====>", currentClusterType)
 
 	if currentClusterType == "local" {
 		currentInterface = clusterLocal.GetUI()
