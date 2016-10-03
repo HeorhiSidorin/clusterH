@@ -55,6 +55,10 @@ $shared_folders = clusterConfig['SharedFolders']
 $forwarded_ports = clusterConfig['ForwardedPorts']
 `
 
+func Init() {
+
+}
+
 func downloadRunningFiles(filepath, url string) error {
 	usr, _ := user.Current()
 	out, err := os.Create(usr.HomeDir + "/.config/clusterH/coreos-vagrant.zip")
@@ -145,8 +149,6 @@ func createLocalClusterConfigs(cliFlags *cli.Context, configPath string, jsonCon
 
 	myConfigJSONFile.Write([]byte(myConfigJSON))
 
-	fmt.Println(string(myConfigJSON))
-
 	file, err := os.OpenFile(configPath+"/config.rb.sample", os.O_RDONLY, 0777)
 	data := bytes.NewBuffer(nil)
 
@@ -204,7 +206,7 @@ func createLocalCluster(c *cli.Context) {
 	runningArchiveURL := "https://github.com/coreos/coreos-vagrant/archive/master.zip"
 	runningArchivePath := currentUser.HomeDir + "/.config/clusterH/coreos-vagrant.zip"
 	runningFilesDest := currentUser.HomeDir + "/.config/clusterH/" + c.String("name")
-	runningFilesPath := runningFilesDest + "/coreos-vagrant-master"
+	workDir := runningFilesDest + "/coreos-vagrant-master"
 
 	fmt.Println("Downloading coreos-vagrant files")
 	err := downloadRunningFiles(runningArchivePath, runningArchiveURL)
@@ -217,13 +219,13 @@ func createLocalCluster(c *cli.Context) {
 		log.Fatal(err)
 	}
 	fmt.Println("Create cluster confings: config.rb and user-data")
-	err = createLocalClusterConfigs(c, runningFilesPath, runningFilesDest)
+	err = createLocalClusterConfigs(c, workDir, runningFilesDest)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Run cluster in vagrant")
-	runVagrant(runningFilesPath)
-	fmt.Printf("You can use plain vagrant commands in such directory: %s \n", runningFilesPath)
+	runVagrant(workDir)
+	fmt.Printf("You can use plain vagrant commands in such directory: %s \n", workDir)
 
 }
 
@@ -256,13 +258,19 @@ func Create(c *cli.Context) error {
 	clusters = append(clusters, string(clusterName))
 
 	db.Update(func(tx *bolt.Tx) error {
-		bucket, _ := tx.CreateBucketIfNotExists(bucketName)
+		bucket, err := tx.CreateBucketIfNotExists(bucketName)
+		if err != nil {
+			return err
+		}
 
 		_ = bucket.Put([]byte("currentCluster"), []byte(clusterName))
 
 		_ = bucket.Put([]byte("currentClusterType"), []byte("local"))
 
-		clusters, _ := json.Marshal(clusters)
+		clusters, err := json.Marshal(clusters)
+		if err != nil {
+			return err
+		}
 		_ = bucket.Put([]byte("clusters"), clusters)
 
 		_ = bucket.Put([]byte(clusterName+"-token"), []byte(c.String("token")))
@@ -275,48 +283,47 @@ func Create(c *cli.Context) error {
 	return nil
 }
 
-func getCurrentCluster() struct{cName, cType string}{
-  var currentClusterName, currentClusterType string
+func getCurrentCluster() struct{ cName, cType string } {
+	var currentClusterName, currentClusterType string
 
-  db.View(func(tx *bolt.Tx) error {
+	db.View(func(tx *bolt.Tx) error {
 
 		bucket := tx.Bucket([]byte("clusterh"))
 
 		currentClusterName = string(bucket.Get([]byte("currentCluster")))
 
-    currentClusterType = string(bucket.Get([]byte("currentClusterType")))
+		currentClusterType = string(bucket.Get([]byte("currentClusterType")))
 
 		return nil
 	})
 
-	return struct { cName, cType string } {
+	return struct{ cName, cType string }{
 		cName: currentClusterName,
 		cType: currentClusterType,
 	}
 }
 
-func status() {
-	cluster := getCurrentCluster()
-	fmt.Println(cluster)
-}
+func printClusterStatus() {
+	fmt.Println(getCurrentCluster())
+	var workDir string
+	currentUser, _ := user.Current()
+	db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("clusterh"))
 
-func GetUI() []cli.Command {
-	return []cli.Command{
-		{
-			Name:  "lol",
-			Usage: "destroy all droplets in account",
-			Action: func(c *cli.Context) error {
-				fmt.Println("Lol!")
-				return nil
-			},
-		},
-		{
-			Name:  "status",
-			Usage: "status of clusterH",
-			Action: func(c *cli.Context) error {
-				status()
-				return nil
-			},
-		},
-	}
+		if bucket == nil {
+			return nil
+		}
+
+		workDir = currentUser.HomeDir + "/.config/clusterH/" + string(bucket.Get([]byte("currentCluster"))) + "/coreos-vagrant-master"
+
+		return nil
+	})
+	fmt.Println(workDir)
+	oldWorkingDir, _ := os.Getwd()
+	os.Chdir(workDir)
+	defer os.Chdir(oldWorkingDir)
+	cmd := exec.Command("vagrant", "status")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
 }
