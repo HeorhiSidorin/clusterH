@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/user"
@@ -45,8 +44,6 @@ func GetCurrentClusterType() string {
 		}
 
 		currentClusterType = string(bucket.Get([]byte("currentClusterType")))
-
-		fmt.Println("44345---->>", currentClusterType)
 
 		return nil
 	})
