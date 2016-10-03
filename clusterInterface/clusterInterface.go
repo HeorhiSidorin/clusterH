@@ -62,6 +62,10 @@ func Run(currentInterface []cli.Command) {
 			List of sizes: 512mb, 1gb, 2gb, 4gb, 8gb, 16gb`,
 							Value: "512mb",
 						},
+						cli.IntFlag{
+							Name:  "file, f",
+							Usage: "user-data file (required)",
+						},
 					},
 					Action: func(c *cli.Context) error {
 						//check flags count
