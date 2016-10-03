@@ -35,6 +35,7 @@ func createDoCluster(c *cli.Context) error {
 	region := c.String("region")
 	size := c.String("size")
 	pat := c.String("token")
+	filePath := c.String("file")
 
 	tokenSource := &TokenSource{
 		AccessToken: pat,
@@ -55,7 +56,7 @@ func createDoCluster(c *cli.Context) error {
 	}
 
 	//open user-data file
-	file, err := os.Open(c.Args()[0])
+	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Println(err)
 		return nil

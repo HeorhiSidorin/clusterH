@@ -62,14 +62,14 @@ func Run(currentInterface []cli.Command) {
 			List of sizes: 512mb, 1gb, 2gb, 4gb, 8gb, 16gb`,
 							Value: "512mb",
 						},
-						cli.IntFlag{
+						cli.StringFlag{
 							Name:  "file, f",
 							Usage: "user-data file (required)",
 						},
 					},
 					Action: func(c *cli.Context) error {
 						//check flags count
-						if c.NumFlags() < 1 {
+						if c.NumFlags() < 3 {
 							fmt.Println("Incorrect command usage. See CREATE command help.")
 							cli.ShowCommandHelp(c, "create")
 							return nil
