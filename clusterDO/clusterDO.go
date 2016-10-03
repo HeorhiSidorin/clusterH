@@ -281,6 +281,31 @@ func Fingerprint(c *cli.Context) {
 	})
 }
 
+func getCurrentCluster() struct{cName, cType string}{
+  var currentClusterName, currentClusterType string
+
+  db.View(func(tx *bolt.Tx) error {
+
+		bucket := tx.Bucket([]byte("clusterh"))
+
+		currentClusterName = string(bucket.Get([]byte("currentCluster")))
+
+    currentClusterType = string(bucket.Get([]byte("currentClusterType")))
+
+		return nil
+	})
+
+	return struct { cName, cType string } {
+		cName: currentClusterName,
+		cType: currentClusterType,
+	}
+}
+
+func status() {
+	cluster := getCurrentCluster()
+	fmt.Println(cluster)
+}
+
 func GetUI() []cli.Command {
 	return []cli.Command{
 		{
@@ -288,6 +313,14 @@ func GetUI() []cli.Command {
 			Usage: "destroy all droplets in account",
 			Action: func(c *cli.Context) error {
 				Destroy(c)
+				return nil
+			},
+		},
+		{
+			Name:  "status",
+			Usage: "status of clusterH",
+			Action: func(c *cli.Context) error {
+				status()
 				return nil
 			},
 		},

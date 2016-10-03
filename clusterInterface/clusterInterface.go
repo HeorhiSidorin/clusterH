@@ -7,7 +7,6 @@ import (
 
 	"clusterH/clusterDO"
 	"clusterH/clusterLocal"
-	"clusterH/clusterCommon"
 
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
@@ -129,14 +128,6 @@ func Run(currentInterface []cli.Command) {
 			Usage: "list of fingerprint",
 			Action: func(c *cli.Context) error {
 				clusterDO.Fingerprint(c)
-				return nil
-			},
-		},
-		{
-			Name:  "status",
-			Usage: "status of clusterH",
-			Action: func(c *cli.Context) error {
-				clusterCommon.Status()
 				return nil
 			},
 		},
