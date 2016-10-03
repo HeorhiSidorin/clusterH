@@ -119,8 +119,24 @@ func createDoCluster(c *cli.Context) error {
 	return nil
 }
 
-func DestroyAll(c *cli.Context) {
-	pat := c.String("token")
+func Destroy(c *cli.Context) {
+	var pat string
+	var clusters []string
+	var clusterName string
+	var clusterIndex int
+
+	db.View(func(tx *bolt.Tx) error {
+
+		bucket := tx.Bucket([]byte("clusterh"))
+
+		json.Unmarshal(bucket.Get([]byte("clusters")), &clusters)
+
+		clusterName = string(bucket.Get([]byte("currentCluster")))
+
+		pat = string(bucket.Get([]byte(clusterName+"-token")))
+
+		return nil
+	})
 
 	tokenSource := &TokenSource{
 		AccessToken: pat,
@@ -134,6 +150,30 @@ func DestroyAll(c *cli.Context) {
 		fmt.Println(d.ID)
 		client.Droplets.Delete(d.ID)
 	}
+
+	for i, c := range clusters {
+		if c == clusterName {
+			clusterIndex = i
+			break
+		}
+	}
+
+	clusters = append(clusters[:clusterIndex], clusters[clusterIndex+1:]...)
+
+	db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("clusterh"))
+
+		_ = bucket.Put([]byte("currentCluster"), []byte(""))
+
+		_ = bucket.Put([]byte("currentClusterType"), []byte(""))
+
+		clusters, _ := json.Marshal(clusters)
+		_ = bucket.Put([]byte("clusters"), clusters)
+
+		_ = bucket.Delete([]byte(clusterName+"-token"))
+
+		return nil
+	})
 }
 
 func AddFingerprint(fingerprint, name string) error {
@@ -246,16 +286,8 @@ func GetUI() []cli.Command {
 		{
 			Name:  "destroy",
 			Usage: "destroy all droplets in account",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:   "token, t",
-					Value:  "edb76f943aed64b72856bf99de5ce1608284fbedcf76ec32491ee19c566be7e2",
-					Usage:  "Your digitalocean's token",
-					EnvVar: "DIGITAL_OCEAN_TOKEN",
-				},
-			},
 			Action: func(c *cli.Context) error {
-				DestroyAll(c)
+				Destroy(c)
 				return nil
 			},
 		},

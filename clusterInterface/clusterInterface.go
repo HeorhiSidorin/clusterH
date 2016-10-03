@@ -131,22 +131,6 @@ func Run(currentInterface []cli.Command) {
 				return nil
 			},
 		},
-		{
-			Name:  "destroy",
-			Usage: "destroy all droplets in account",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:   "token, t",
-					Value:  "edb76f943aed64b72856bf99de5ce1608284fbedcf76ec32491ee19c566be7e2",
-					Usage:  "Your digitalocean's token",
-					EnvVar: "DIGITAL_OCEAN_TOKEN",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				clusterDO.DestroyAll(c)
-				return nil
-			},
-		},
 	}
 
 	app.Commands = append(app.Commands, currentInterface...)
