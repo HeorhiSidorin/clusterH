@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/boltdb/bolt"
 	"github.com/digitalocean/godo"
@@ -89,6 +90,8 @@ func createDoCluster(c *cli.Context) error {
 
 	userDataBytes, _ := yaml.Marshal(&userDataYAML)
 
+	userDataBytes = append([]byte("#cloud-config\n\n"), userDataBytes...)
+
 	userData = string(userDataBytes)
 
 	createRequest := &godo.DropletMultiCreateRequest{
@@ -123,7 +126,6 @@ func createDoCluster(c *cli.Context) error {
 	// tagging cluster's droplets
 	var resources []godo.Resource
 	for _, droplet := range droplets {
-		fmt.Println(droplet.Status)
 		resources = append(resources, godo.Resource{
 			ID:   strconv.Itoa(droplet.ID),
 			Type: "droplet",
@@ -142,7 +144,32 @@ func createDoCluster(c *cli.Context) error {
 
 	client.Tags.UntagResources(c.String("name"), unTagResourcesRequest)
 
+	var wg sync.WaitGroup
+
+	fmt.Println("Waiting for creating droplets...")
+
+	wg.Add(number)
+
+	for _, droplet := range droplets {
+		go waitForActiveStatus(client, droplet.ID, &wg)
+	}
+
+	wg.Wait()
+
+	fmt.Println("Cluster is created")
 	return nil
+}
+
+func waitForActiveStatus(client *godo.Client, id int, wg *sync.WaitGroup) {
+	for {
+		droplet, _, _ := client.Droplets.Get(id)
+		if droplet.Status == "active" {
+			ip, _ := droplet.PublicIPv4()
+			fmt.Printf("'%s'\n", ip)
+			wg.Done()
+			break
+		}
+	}
 }
 
 func Destroy(c *cli.Context) {
