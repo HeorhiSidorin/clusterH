@@ -5,6 +5,8 @@ import (
 	"clusterH/store"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/urfave/cli"
 	"golang.org/x/oauth2"
+	"gopkg.in/yaml.v2"
 )
 
 var db = store.GetDB()
@@ -61,6 +64,7 @@ func createDoCluster(c *cli.Context) error {
 		fmt.Println(err)
 		return nil
 	}
+
 	scanner := bufio.NewScanner(file)
 
 	var userDataLinesArray []string
@@ -72,6 +76,21 @@ func createDoCluster(c *cli.Context) error {
 
 	userData := strings.Join(userDataLinesArray, "")
 
+	userDataYAML := make(map[interface{}]interface{})
+
+	_ = yaml.Unmarshal([]byte(userData), &userDataYAML)
+
+	//generate new discovery
+	resp, _ := http.Get("https://discovery.etcd.io/new?size=" + strconv.Itoa(number))
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	userDataYAML["coreos"].(map[interface{}]interface{})["etcd2"].(map[interface{}]interface{})["discovery"] = string(body)
+
+	userDataBytes, _ := yaml.Marshal(&userDataYAML)
+
+	userData = string(userDataBytes)
+
 	createRequest := &godo.DropletMultiCreateRequest{
 		Names:             names,
 		Region:            region,
@@ -80,6 +99,12 @@ func createDoCluster(c *cli.Context) error {
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
 				Fingerprint: "d2:ee:f3:b0:a4:de:95:12:4c:27:24:5f:de:bb:87:90",
+			},
+			{
+				Fingerprint: "0e:4e:20:87:d6:fd:9d:a1:bb:32:33:0c:cd:e3:d0:c7",
+			},
+			{
+				Fingerprint: "9d:ee:ae:a0:56:42:73:b5:95:4e:f2:ff:54:d4:1a:78",
 			},
 		},
 		Image: godo.DropletCreateImage{
@@ -98,6 +123,7 @@ func createDoCluster(c *cli.Context) error {
 	// tagging cluster's droplets
 	var resources []godo.Resource
 	for _, droplet := range droplets {
+		fmt.Println(droplet.Status)
 		resources = append(resources, godo.Resource{
 			ID:   strconv.Itoa(droplet.ID),
 			Type: "droplet",
@@ -133,7 +159,7 @@ func Destroy(c *cli.Context) {
 
 		clusterName = string(bucket.Get([]byte("currentCluster")))
 
-		pat = string(bucket.Get([]byte(clusterName+"-token")))
+		pat = string(bucket.Get([]byte(clusterName + "-token")))
 
 		return nil
 	})
@@ -170,7 +196,7 @@ func Destroy(c *cli.Context) {
 		clusters, _ := json.Marshal(clusters)
 		_ = bucket.Put([]byte("clusters"), clusters)
 
-		_ = bucket.Delete([]byte(clusterName+"-token"))
+		_ = bucket.Delete([]byte(clusterName + "-token"))
 
 		return nil
 	})
@@ -273,29 +299,29 @@ func Fingerprint(c *cli.Context) {
 
 		cursor := bucket.Cursor()
 
-	  for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-	    fmt.Printf("%s --------> %s\n", k, v)
-	  }
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			fmt.Printf("%s --------> %s\n", k, v)
+		}
 
-	  return nil
+		return nil
 	})
 }
 
-func getCurrentCluster() struct{cName, cType string}{
-  var currentClusterName, currentClusterType string
+func getCurrentCluster() struct{ cName, cType string } {
+	var currentClusterName, currentClusterType string
 
-  db.View(func(tx *bolt.Tx) error {
+	db.View(func(tx *bolt.Tx) error {
 
 		bucket := tx.Bucket([]byte("clusterh"))
 
 		currentClusterName = string(bucket.Get([]byte("currentCluster")))
 
-    currentClusterType = string(bucket.Get([]byte("currentClusterType")))
+		currentClusterType = string(bucket.Get([]byte("currentClusterType")))
 
 		return nil
 	})
 
-	return struct { cName, cType string } {
+	return struct{ cName, cType string }{
 		cName: currentClusterName,
 		cType: currentClusterType,
 	}
