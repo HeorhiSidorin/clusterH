@@ -138,11 +138,10 @@ func createDoCluster(c *cli.Context) error {
 	client.Tags.TagResources(c.String("name"), tagResourcesRequest)
 
 	//removing first droplet from cluster(untagging droplet)
-	unTagResourcesRequest := &godo.UntagResourcesRequest{
-		Resources: resources[0:1],
-	}
-
-	client.Tags.UntagResources(c.String("name"), unTagResourcesRequest)
+	// unTagResourcesRequest := &godo.UntagResourcesRequest{
+	// 	Resources: resources[0:1],
+	// }
+	//client.Tags.UntagResources(c.String("name"), unTagResourcesRequest)
 
 	var wg sync.WaitGroup
 
@@ -197,11 +196,17 @@ func Destroy(c *cli.Context) {
 	oauthClient := oauth2.NewClient(oauth2.NoContext, tokenSource)
 	client := godo.NewClient(oauthClient)
 
-	droplets, _, _ := client.Droplets.List(&godo.ListOptions{})
+	_, err := client.Droplets.DeleteByTag(clusterName)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("Successfully deleted")
+	}
 
-	for _, d := range droplets {
-		fmt.Println(d.ID)
-		client.Droplets.Delete(d.ID)
+	//remove tag from digital ocean
+	_, err = client.Tags.Delete(clusterName)
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	for i, c := range clusters {
